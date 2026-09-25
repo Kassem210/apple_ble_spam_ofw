@@ -719,7 +719,7 @@ function viewSettings() {
         <li>Tap <b>Copy my private sync link</b> above.</li>
         <li>Open the <b>Shortcuts</b> app, then tap <b>+</b> to make a new shortcut. Name it <b>Life Health Sync</b>.</li>
         <li><b>Add Action</b>, search <b>Find Health Samples</b>, and add it. Set <b>Type</b> to <b>Steps</b>. Tap <b>Add Filter</b> and set it to <b>Start Date · is today</b>. Set <b>Group By</b> to <b>Day</b>.</li>
-        <li>Add a second <b>Find Health Samples</b>. Set <b>Type</b> to <b>Sleep Analysis</b> and the filter to <b>End Date · is in the last · 16 · hours</b>. Set <b>Sort by</b> to <b>Start Date</b> and leave <b>Limit</b> off.</li>
+        <li>Add a second <b>Find Health Samples</b>. Set <b>Type</b> to <b>Sleep Analysis</b> and the filter to <b>End Date · is today</b> (or <b>is in the last · 1 · days</b>). Set <b>Sort by</b> to <b>Start Date</b> and leave <b>Limit</b> off.</li>
         <li>Add a third <b>Find Health Samples</b>. Set <b>Type</b> to <b>Resting Heart Rate</b>, the filter to <b>Start Date · is today</b>, <b>Sort by</b> to <b>Start Date</b> <b>Latest First</b>, and turn <b>Limit</b> on with <b>1</b>.</li>
         <li>Add <b>Get Contents of URL</b>. Paste your link as the URL. Tap <b>›</b> (Show More), set <b>Method</b> to <b>POST</b>, and set <b>Request Body</b> to <b>JSON</b>.</li>
         <li>Under Request Body, tap <b>Add new field → Text</b> five times. Name the keys exactly:
