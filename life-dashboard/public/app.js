@@ -362,7 +362,7 @@ function healthCard(span = 'span-7') {
 function healthSourceNote() {
   const st = state.data.status;
   if (st.appleHealth) {
-    return `<p class="small faint" style="margin:12px 0 0">From Apple Health · synced ${esc(new Date(st.appleHealth.at).toLocaleString('en-GB', { timeZone: S().timezone, hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }))}</p>`;
+    return `<div class="row" style="margin-top:12px"><span class="small faint">From Apple Health · synced ${esc(new Date(st.appleHealth.at).toLocaleString('en-GB', { timeZone: S().timezone, hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }))}</span><span class="spacer"></span><button class="btn sm" data-action="sync-apple-health">${I.refresh}Sync now</button></div>`;
   }
   if (st.connections.health) return '';
   return `<p class="small muted" style="margin:12px 0 0">Sync steps and sleep from Apple Health (your Fitbit Air data included) with an iPhone Shortcut. <button class="btn ghost sm" style="padding:2px 6px;color:var(--accent)" data-action="view" data-view="settings">Set it up →</button></p>`;
@@ -712,7 +712,7 @@ function viewSettings() {
     <h3 style="margin:0 0 6px">Apple Health sync (iPhone)</h3>
     <p class="small muted" style="margin:0 0 12px">An iPhone Shortcut sends your steps, sleep and resting heart rate from Apple Health (Fitbit Air included) here twice a day. It's a one-time setup of about 5 minutes.</p>
     <div id="ah-status" class="small" style="margin-bottom:10px">Loading…</div>
-    <div class="row wrap"><button class="btn primary sm" data-action="copy-health-link">Copy my private sync link</button></div>
+    <div class="row wrap"><button class="btn primary sm" data-action="copy-health-link">Copy my private sync link</button><button class="btn sm" data-action="sync-apple-health">${I.refresh}Sync now</button></div>
     <details style="margin-top:14px">
       <summary style="font-weight:700;cursor:pointer">Step-by-step: build the Shortcut</summary>
       <ol class="small" style="padding-left:20px;line-height:1.7;margin:10px 0 0">
@@ -1208,6 +1208,11 @@ const actions = {
       toast('Location filled in — hit Save');
     }, () => toast('Could not get your location'));
   },
+  // Runs the iPhone Shortcut; iOS brings you back here when it finishes.
+  'sync-apple-health': () => {
+    const back = encodeURIComponent(`${location.origin}/?synced=1`);
+    location.href = `shortcuts://x-callback-url/run-shortcut?name=${encodeURIComponent('Life Health Sync')}&x-success=${back}&x-cancel=${back}&x-error=${back}`;
+  },
   'copy-health-link': async () => {
     if (!state.healthLink) { toast('Still loading, try again in a second'); return; }
     try { await navigator.clipboard.writeText(state.healthLink); toast('Sync link copied ✓'); } catch { toast('Copy was blocked. Try again.'); }
@@ -1355,6 +1360,7 @@ async function start() {
 
   if (params.get('connected')) toast(`Connected ${params.get('connected') === 'health' ? 'Google Health' : 'Google'} ✓`);
   if (params.get('oauth_error')) toast(`Google connection failed: ${params.get('oauth_error')}`, 5000);
+  if (params.get('synced')) toast('Health synced ✓');
   if (params.get('checkin')) checkinSheet();
   if (params.get('add') && state.view === 'tasks') taskSheet();
   if (params.get('add') && state.view === 'money') expenseSheet();
