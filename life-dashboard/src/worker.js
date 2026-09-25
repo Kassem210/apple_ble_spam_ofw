@@ -20,6 +20,7 @@ import {
 import { notifyAll } from './push.js';
 import { tick } from './cron.js';
 import { withSecrets } from './secrets.js';
+import { ingest, ingestToken, lastIngest } from './apple-health.js';
 import { parseQuickTask } from './intents.js';
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), {
@@ -100,6 +101,7 @@ async function dashboard(env) {
       connections,
       push: Boolean(env.VAPID_PUBLIC_KEY),
       healthSync: await getKV(env.DB, 'health_last_sync', null),
+      appleHealth: await lastIngest(env),
     },
   };
 }
@@ -157,6 +159,19 @@ async function handleApi(request, env, ctx, url) {
   if (path === '/api/widget' && method === 'GET') {
     if (!env.SESSION_SECRET || url.searchParams.get('t') !== await widgetToken(env)) return bad('Bad widget token', 401);
     return json(await widget(env), 200, { 'Access-Control-Allow-Origin': '*' });
+  }
+
+  // Apple Health data from the iPhone Shortcut (token in the URL, like the widget).
+  if (path === '/api/health/ingest' && method === 'POST') {
+    if (url.searchParams.get('t') !== await ingestToken(env)) return bad('Bad health token', 401);
+    let data = {};
+    const type = request.headers.get('Content-Type') || '';
+    if (type.includes('json')) data = await body(request);
+    else if (type.includes('form')) data = Object.fromEntries(await request.formData());
+    else { try { data = JSON.parse(await request.text()); } catch { data = {}; } }
+    for (const [k, v] of url.searchParams) if (k !== 't' && data[k] == null) data[k] = v;
+    const r = await ingest(env, await getSettings(env), data);
+    return new Response(r.message, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }
 
   const authed = env.SESSION_SECRET && await isAuthed(request, env);
@@ -328,6 +343,7 @@ async function handleApi(request, env, ctx, url) {
   }
 
   // Widget token + data export
+  if (path === '/api/health/ingest-link') return json({ url: `${origin}/api/health/ingest?t=${await ingestToken(env)}`, last: await lastIngest(env) });
   if (path === '/api/widget/token') return json({ token: await widgetToken(env), url: `${origin}/api/widget?t=${await widgetToken(env)}` });
   if (path === '/api/export') {
     const tables = ['tasks', 'habits', 'habit_logs', 'expenses', 'workouts', 'health_daily', 'focus_sessions', 'checkins', 'scores', 'memories'];

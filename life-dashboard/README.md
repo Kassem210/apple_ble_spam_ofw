@@ -87,6 +87,12 @@ Health data syncs every hour. You can also tap **Sync** on the Health tab.
 
 > The old Fitbit Web API shuts down after 30 September 2026. This app already uses its replacement, the **Google Health API**.
 
+## 4b. Apple Health sync (no Google needed)
+
+If your Fitbit Air data shows up in Apple Health, an iPhone Shortcut can send your steps, sleep and resting heart rate to the dashboard. It runs twice a day (07:15 and 21:15).
+
+In the app, go to **Settings → Apple Health sync (iPhone)**. Tap **Copy my private sync link** and follow the step-by-step guide shown there. The Shortcut posts to `/api/health/ingest?t=<token>` with the fields `steps`, `sleep_value`, `sleep_start`, `sleep_end` (ISO 8601) and `resting_hr`. Values may be numbers, text or lists. Overlapping sleep from two trackers is only counted once.
+
 ## 5. iPhone home-screen widget
 
 1. Install **Scriptable** (free) from the App Store.

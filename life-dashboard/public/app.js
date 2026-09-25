@@ -355,8 +355,17 @@ function healthCard(span = 'span-7') {
         <div class="stat"><b>${t.resting_hr ?? f.health.filter((h) => h.resting_hr).at(-1)?.resting_hr ?? '—'}</b><span>resting bpm</span></div>
         <div class="stat"><b>${f.weekCount}</b><span>workouts · ${f.weekMinutes} min / 7d</span></div>
       </div>
-      ${!state.data.status.connections.health ? `<p class="small muted" style="margin:12px 0 0">Connect Google Health in Settings to pull steps, sleep and workouts from your Fitbit Air automatically.</p>` : ''}
+      ${healthSourceNote()}
     </section>`;
+}
+
+function healthSourceNote() {
+  const st = state.data.status;
+  if (st.appleHealth) {
+    return `<p class="small faint" style="margin:12px 0 0">From Apple Health · synced ${esc(new Date(st.appleHealth.at).toLocaleString('en-GB', { timeZone: S().timezone, hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }))}</p>`;
+  }
+  if (st.connections.health) return '';
+  return `<p class="small muted" style="margin:12px 0 0">Sync steps and sleep from Apple Health (your Fitbit Air data included) with an iPhone Shortcut. <button class="btn ghost sm" style="padding:2px 6px;color:var(--accent)" data-action="view" data-view="settings">Set it up →</button></p>`;
 }
 
 function moneyCard(span = 'span-6') {
@@ -699,6 +708,34 @@ function viewSettings() {
       ${!st.google ? '<span class="small faint">Needs setup</span>' : st.connections.health ? '<button class="btn sm" data-action="disconnect" data-which="health">Disconnect</button>' : '<a class="btn primary sm" href="/api/oauth/google/start?which=health">Connect</a>'}</div>
   </section>
 
+  <section class="card span-12 fade-in" id="apple-health">
+    <h3 style="margin:0 0 6px">Apple Health sync (iPhone)</h3>
+    <p class="small muted" style="margin:0 0 12px">An iPhone Shortcut sends your steps, sleep and resting heart rate from Apple Health (Fitbit Air included) here twice a day. It's a one-time setup of about 5 minutes.</p>
+    <div id="ah-status" class="small" style="margin-bottom:10px">Loading…</div>
+    <div class="row wrap"><button class="btn primary sm" data-action="copy-health-link">Copy my private sync link</button></div>
+    <details style="margin-top:14px">
+      <summary style="font-weight:700;cursor:pointer">Step-by-step: build the Shortcut</summary>
+      <ol class="small" style="padding-left:20px;line-height:1.7;margin:10px 0 0">
+        <li>Tap <b>Copy my private sync link</b> above.</li>
+        <li>Open the <b>Shortcuts</b> app, then tap <b>+</b> to make a new shortcut. Name it <b>Life Health Sync</b>.</li>
+        <li><b>Add Action</b>, search <b>Find Health Samples</b>, and add it. Set <b>Type</b> to <b>Steps</b>. Tap <b>Add Filter</b> and set it to <b>Start Date · is today</b>. Set <b>Group By</b> to <b>Day</b>.</li>
+        <li>Add a second <b>Find Health Samples</b>. Set <b>Type</b> to <b>Sleep Analysis</b> and the filter to <b>End Date · is in the last · 16 · hours</b>. Set <b>Sort by</b> to <b>Start Date</b> and leave <b>Limit</b> off.</li>
+        <li>Add a third <b>Find Health Samples</b>. Set <b>Type</b> to <b>Resting Heart Rate</b>, the filter to <b>Start Date · is today</b>, <b>Sort by</b> to <b>Start Date</b> <b>Latest First</b>, and turn <b>Limit</b> on with <b>1</b>.</li>
+        <li>Add <b>Get Contents of URL</b>. Paste your link as the URL. Tap <b>›</b> (Show More), set <b>Method</b> to <b>POST</b>, and set <b>Request Body</b> to <b>JSON</b>.</li>
+        <li>Under Request Body, tap <b>Add new field → Text</b> five times. Name the keys exactly:
+          <br><code>steps</code>: tap the value, pick the <b>Health Samples</b> variable from step 3, tap the blue token, and choose <b>Value</b>.
+          <br><code>sleep_value</code>: the step 4 samples → <b>Value</b>.
+          <br><code>sleep_start</code>: the step 4 samples → <b>Start Date</b>, with <b>Date Format · ISO 8601</b> and <b>Include ISO 8601 Time</b> on.
+          <br><code>sleep_end</code>: the step 4 samples → <b>End Date</b>, with <b>ISO 8601</b> as above.
+          <br><code>resting_hr</code>: the step 5 samples → <b>Value</b>.</li>
+        <li>Add <b>Show Notification</b> with the <b>Contents of URL</b> variable. Tap ▶︎ to run it once, and <b>Allow</b> Health access for every type it asks about. You should see “Life synced ✓ …”.</li>
+        <li>Make it automatic: go to <b>Automation</b>, tap <b>+</b>, choose <b>Time of Day</b>, set <b>07:15</b> and <b>Daily</b>, choose <b>Run Immediately</b>, and pick <b>Life Health Sync</b>. Make a second automation for <b>21:15</b>. The first sends last night's sleep before your 07:30 briefing; the second sends today's steps before your check-in.</li>
+      </ol>
+      <p class="small muted">If a number looks wrong, tap <b>Show what was received</b> below and send a screenshot to Claude.</p>
+    </details>
+    <details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">Show what was received</summary><code class="block" id="ah-raw" style="margin-top:8px">—</code></details>
+  </section>
+
   <section class="card span-6 fade-in">
     <h3 style="margin:0 0 10px">Notifications</h3>
     <p class="small muted" style="margin:0 0 12px" id="push-state">Morning briefing at ${esc(s.briefingTime)}, task reminders, and the evening check-in.</p>
@@ -746,7 +783,18 @@ async function hydrateSettings() {
   fill();
   if (voiceSupported.speak) speechSynthesis.onvoiceschanged = fill;
 
-  const [w, mem] = await Promise.all([guard(() => api('/api/widget/token')), guard(() => api('/api/memories'))]);
+  const [w, mem, ah] = await Promise.all([guard(() => api('/api/widget/token')), guard(() => api('/api/memories')), guard(() => api('/api/health/ingest-link'))]);
+  if (ah) {
+    state.healthLink = ah.url;
+    const st = $('#ah-status');
+    if (st) {
+      const p = ah.last?.parsed;
+      st.innerHTML = p
+        ? `<b style="color:var(--green)">Last sync ${esc(new Date(ah.last.at).toLocaleString('en-GB', { timeZone: S().timezone, hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }))}</b> · ${p.steps != null ? `${p.steps.toLocaleString('en-US')} steps` : 'no steps'} · ${p.sleep_min ? fmtMin(p.sleep_min) + ' sleep' : 'no sleep'} · ${p.resting_hr ? p.resting_hr + ' bpm' : 'no resting HR'}`
+        : '<span class="muted">Not synced yet.</span>';
+    }
+    if ($('#ah-raw') && ah.last) $('#ah-raw').textContent = ah.last.raw;
+  }
   if (w && $('#widget-url')) $('#widget-url').textContent = w.url;
   // Pre-load the widget script with your link baked in, so "Copy" works in one tap on iPhone.
   if (w && !state.widgetScript) {
@@ -1159,6 +1207,10 @@ const actions = {
       f.lon.value = p.coords.longitude.toFixed(4);
       toast('Location filled in — hit Save');
     }, () => toast('Could not get your location'));
+  },
+  'copy-health-link': async () => {
+    if (!state.healthLink) { toast('Still loading, try again in a second'); return; }
+    try { await navigator.clipboard.writeText(state.healthLink); toast('Sync link copied ✓'); } catch { toast('Copy was blocked. Try again.'); }
   },
   'copy-widget-script': async () => {
     if (!state.widgetScript) { toast('Still loading, try again in a second'); return; }
