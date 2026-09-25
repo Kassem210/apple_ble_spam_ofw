@@ -1,0 +1,22 @@
+{
+  "name": "Life — Dashboard & Assistant",
+  "short_name": "Life",
+  "description": "Your daily briefing, tasks, habits, health, money and a voice assistant.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0d11",
+  "theme_color": "#6c5ce7",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Talk to assistant", "short_name": "Assistant", "url": "/?view=assistant&listen=1", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Today's briefing", "short_name": "Briefing", "url": "/?briefing=1", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Add a task", "short_name": "Task", "url": "/?view=tasks&add=1", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Log spending", "short_name": "Spend", "url": "/?view=money&add=1", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "life-dashboard",
+  "version": "1.0.0",
+  "description": "Personal life dashboard + voice assistant (Cloudflare Workers, free tier)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "setup": "node scripts/setup.mjs",
+    "keys": "node scripts/gen-keys.mjs",
+    "icons": "node scripts/make-icons.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "http_ece": "^1.2.1",
+    "wrangler": "^4.140.0"
+  },
+  "private": true,
+  "type": "module"
+}
