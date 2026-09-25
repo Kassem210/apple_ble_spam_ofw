@@ -8,7 +8,7 @@
     "setup": "node scripts/setup.mjs",
     "keys": "node scripts/gen-keys.mjs",
     "icons": "node scripts/make-icons.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --no-warnings --test test/*.test.mjs"
   },
   "license": "MIT",
   "devDependencies": {

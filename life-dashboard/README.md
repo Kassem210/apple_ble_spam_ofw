@@ -2,14 +2,14 @@
 
 A private web app you install on your phone's home screen:
 
-- **Daily briefing at 07:30 (Cairo time)**, sent as a push notification and read aloud. It covers weather, calendar, important email, tasks, habits, sleep and steps, spending, news, yesterday's score and a quote. If you add an AI key, the assistant writes the briefing personally for you.
+- **Daily briefing at 07:30 (Cairo time)**, sent as a push notification and read aloud. It covers weather, calendar, important email, tasks, habits, sleep and steps, spending, news, yesterday's score and a quote. If you add a free AI key (Groq or Gemini), the assistant writes the briefing personally for you.
 - **Tasks and reminders** with natural language ("call mum tomorrow 6pm"), priorities, `#tags`, and repeats. Weekday repeats skip Friday and Saturday. You get a push reminder before each task, with **Done** and **Snooze** buttons.
 - **Voice assistant** ("Nova"; you can rename it). Tap the mic or say **"Hey Nova"** while the app is open. It holds a real conversation, follows up, and can add tasks, log spending, workouts, habits and focus time, check you in, and remember things about you.
 - **Daily productivity score (0–100)** built from tasks, activity, habits, sleep, focus and an evening check-in. Anything you don't track is left out of the score.
 - **Health**: Fitbit Air data (steps, sleep, resting heart rate, workouts) through the Google Health API, plus manual workout logging.
 - **Spending**: quick logging by voice or tap, a monthly budget, categories and a 30-day chart.
 - **Habits, a focus timer, prayer times (optional), light and dark themes, and an iPhone home-screen widget.**
-- **Password-locked**, just for you. **Costs nothing**: Cloudflare Workers, D1 and cron jobs are all on the free plan, and Gemini's free tier needs no card.
+- **Password-locked**, just for you. **Costs nothing**: Cloudflare Workers, D1 and cron jobs are all on the free plan, and the free AI tiers (Groq or Gemini) need no card.
 
 ---
 
@@ -27,7 +27,7 @@ Everything happens in Safari.
 4. Tap **Deploy**. The first deploy also creates the database.
 5. Open your Worker → **Settings → Variables and Secrets** → **Add**:
    - Type **Secret**, name `APP_PASSWORD`, value your password.
-   - Optional: another **Secret** named `GEMINI_API_KEY` (see section 3).
+   - Optional but recommended: another **Secret** named `GROQ_API_KEY` for the free AI (see section 3).
 6. Open your link, e.g. `https://life-dashboard.<you>.workers.dev`.
 
 The security and notification keys are generated automatically on first run. Every push to the repo redeploys the app.
@@ -52,12 +52,16 @@ Long-press the app icon for shortcuts: talk to the assistant, open the briefing,
 
 ## 3. Free AI brain (recommended)
 
-Without a key, the assistant still understands common commands, for example "remind me to…", "done…", "I spent 50 on coffee", "I ran 5 km", "what's my score" and "brief me". With a free Gemini key it becomes a real conversational assistant.
+Without a key, the assistant still understands common commands, for example "remind me to…", "done…", "I spent 50 on coffee", "I ran 5 km", "what's my score" and "brief me". With a free key it becomes a real conversational assistant.
 
-1. Go to https://aistudio.google.com/apikey → **Create API key**. No card is needed.
-2. In Cloudflare, go to your Worker → **Settings → Variables and Secrets** → **Add** a **Secret** named `GEMINI_API_KEY` and paste the key. From a computer you can run `npx wrangler secret put GEMINI_API_KEY` instead.
+**Option A: Groq (easiest, recommended).** Free, no card, and no Google Cloud project needed.
+1. Go to https://console.groq.com and sign in with Google, GitHub or email.
+2. Open **API Keys** → **Create API Key**, name it `Life`, and copy the key (it starts with `gsk_`).
+3. In Cloudflare, go to your Worker → **Settings → Variables and Secrets** → **Add** a **Secret** named `GROQ_API_KEY` and paste the key.
 
-The free tier covers normal personal use. When a model's daily quota runs out, the app switches to a lighter Gemini model, then to the offline command parser.
+**Option B: Google Gemini.** Get a key at https://aistudio.google.com/apikey and add it as a Secret named `GEMINI_API_KEY`. Some Google accounts aren't allowed to create the Cloud project this needs; if yours isn't, use Groq.
+
+If you set both, Groq is used first and Gemini is the backup. If the free daily limit runs out, the app switches to a smaller free model, then to the offline commands.
 
 ## 4. Connect Google: Calendar, Gmail and Fitbit Air (free, about 5 minutes)
 

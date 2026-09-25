@@ -182,4 +182,4 @@ export function describeResult(tool, result) {
   }
 }
 
-export const HELP = 'Try: "remind me to call mum tomorrow at 6pm", "done call mum", "I spent 120 on lunch", "I ran 5 km", "what\'s my score", or "read my briefing". Add a free Gemini key in setup for full conversations.';
+export const HELP = 'Try: "remind me to call mum tomorrow at 6pm", "done call mum", "I spent 120 on lunch", "I ran 5 km", "what\'s my score", or "read my briefing". Add a free Groq key (GROQ_API_KEY) for full conversations.';

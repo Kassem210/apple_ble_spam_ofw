@@ -13,7 +13,7 @@ import {
   listMemories, remember,
 } from './data.js';
 import { getBriefing, weather } from './briefing.js';
-import { chat, chatHistory, clearChat, aiConfigured } from './ai.js';
+import { chat, chatHistory, clearChat, aiConfigured, aiProvider } from './ai.js';
 import {
   authUrl, handleCallback, disconnect, connectionStatus, googleConfigured, syncHealth, calendarEvents,
 } from './google.js';
@@ -95,6 +95,7 @@ async function dashboard(env) {
     checkin,
     status: {
       ai: aiConfigured(env),
+      aiProvider: aiProvider(env),
       google: googleConfigured(env),
       connections,
       push: Boolean(env.VAPID_PUBLIC_KEY),

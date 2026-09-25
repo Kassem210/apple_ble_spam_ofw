@@ -95,9 +95,9 @@ export async function delKV(db, key) {
   await run(db, 'DELETE FROM kv WHERE key = ?', key);
 }
 
-let schemaReady = false;
+const schemaReady = new WeakSet();
 export async function ensureSchema(db) {
-  if (schemaReady) return;
+  if (schemaReady.has(db)) return;
   let version = 0;
   try {
     version = await getKV(db, 'schema_version', 0);
@@ -109,5 +109,5 @@ export async function ensureSchema(db) {
     await db.batch(statements.map((s) => db.prepare(s)));
     await setKV(db, 'schema_version', SCHEMA_VERSION);
   }
-  schemaReady = true;
+  schemaReady.add(db);
 }

@@ -602,7 +602,7 @@ function viewAssistant() {
         <button class="btn primary icon" aria-label="Send">${I.send}</button>
       </form>
       <div class="row small faint" style="margin-top:8px">
-        <span>${state.data.status.ai ? 'AI: Gemini (free tier)' : 'Offline command mode — add a free Gemini key for full conversation'}</span>
+        <span>${state.data.status.ai ? `AI: ${esc(state.data.status.aiProvider)} (free tier)` : 'Offline command mode — add a free Groq key for full conversation'}</span>
         <span class="spacer"></span>
         ${state.chat.length ? '<button class="btn ghost sm" data-action="clear-chat">Clear</button>' : ''}
       </div>
@@ -692,7 +692,7 @@ function viewSettings() {
 
   <section class="card span-6 fade-in">
     <h3 style="margin:0 0 10px">Connections</h3>
-    <div class="conn"><span class="status ${st.ai ? 'on' : ''}"></span><div style="flex:1"><b>AI brain</b><div class="small muted">${st.ai ? 'Gemini connected (free tier)' : 'Add GEMINI_API_KEY for full conversations (free)'}</div></div></div>
+    <div class="conn"><span class="status ${st.ai ? 'on' : ''}"></span><div style="flex:1"><b>AI brain</b><div class="small muted">${st.ai ? `${esc(st.aiProvider)} connected (free tier)` : 'Add a free GROQ_API_KEY secret in Cloudflare for full conversations'}</div></div></div>
     <div class="conn"><span class="status ${st.connections.google ? 'on' : ''}"></span><div style="flex:1"><b>Google Calendar & Gmail</b><div class="small muted">Events + important email in your briefing</div></div>
       ${!st.google ? '<span class="small faint">Needs setup</span>' : st.connections.google ? '<button class="btn sm" data-action="disconnect" data-which="google">Disconnect</button>' : '<a class="btn primary sm" href="/api/oauth/google/start?which=google">Connect</a>'}</div>
     <div class="conn"><span class="status ${st.connections.health ? 'on' : ''}"></span><div style="flex:1"><b>Google Health · Fitbit Air</b><div class="small muted">Steps, sleep, heart rate, workouts</div></div>

@@ -1,6 +1,9 @@
-// The assistant's brain: Google Gemini on its free tier (no card needed), with
-// function calling so it can act on your dashboard. Falls back to the offline
-// command parser if no key is set or the free quota is used up.
+// The assistant's brain. Two free options (no card needed), both with function
+// calling so the assistant can act on your dashboard:
+//   GROQ_API_KEY   -> Groq (console.groq.com), OpenAI-style API
+//   GEMINI_API_KEY -> Google Gemini (aistudio.google.com)
+// If both are set, Groq is tried first and Gemini is the backup. Without either
+// (or when the free quota runs out) it falls back to the offline command parser.
 
 import { all, run } from './db.js';
 import { zonedParts, prettyDate } from './time.js';
@@ -11,9 +14,84 @@ import { parseCommand, describeResult, HELP } from './intents.js';
 const DEFAULT_MODEL = 'gemini-flash-latest';
 const FALLBACK_MODEL = 'gemini-flash-lite-latest';
 
+const GROQ_MODELS = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.6-27b'];
+
 export function aiConfigured(env) {
-  return Boolean(env.GEMINI_API_KEY);
+  return Boolean(env.GROQ_API_KEY || env.GEMINI_API_KEY);
 }
+
+export function aiProvider(env) {
+  if (env.GROQ_API_KEY) return 'Groq';
+  if (env.GEMINI_API_KEY) return 'Gemini';
+  return null;
+}
+
+// ---------- Groq (OpenAI-compatible) ----------
+
+async function callGroq(env, body) {
+  const models = [...new Set([env.GROQ_MODEL, ...GROQ_MODELS].filter(Boolean))];
+  let lastError;
+  for (const model of models) {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_API_KEY}` },
+      body: JSON.stringify({ ...body, model }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return data;
+    lastError = new Error(`Groq ${res.status} (${model}): ${data.error?.message || 'error'}`);
+    // Rate limit, retired model or bad request for this model: try the next one.
+    if (![400, 404, 413, 429, 503].includes(res.status)) throw lastError;
+  }
+  throw lastError;
+}
+
+// Gemini-style schema (TYPE: 'OBJECT') -> JSON Schema (type: 'object').
+function toJsonSchema(schema) {
+  if (Array.isArray(schema)) return schema.map(toJsonSchema);
+  if (!schema || typeof schema !== 'object') return schema;
+  const out = {};
+  for (const [k, v] of Object.entries(schema)) {
+    out[k] = k === 'type' && typeof v === 'string' ? v.toLowerCase() : toJsonSchema(v);
+  }
+  return out;
+}
+
+const OPENAI_TOOLS = TOOL_DECLARATIONS.map((t) => ({
+  type: 'function',
+  function: { name: t.name, description: t.description, parameters: toJsonSchema(t.parameters) },
+}));
+
+async function chatWithGroq(env, systemText, history, ctx, changed, actions) {
+  const messages = [
+    { role: 'system', content: systemText },
+    ...history.map((h) => ({ role: h.role === 'assistant' ? 'assistant' : 'user', content: h.content })),
+  ];
+  for (let step = 0; step < 6; step++) {
+    const data = await callGroq(env, { messages, tools: OPENAI_TOOLS, tool_choice: 'auto', temperature: 0.6, max_completion_tokens: 1024 });
+    const msg = data.choices?.[0]?.message;
+    if (!msg) throw new Error('Empty response from Groq');
+    const calls = msg.tool_calls || [];
+    if (!calls.length) return (msg.content || '').trim() || 'Done.';
+    messages.push({ role: 'assistant', content: msg.content || '', tool_calls: calls });
+    for (const call of calls) {
+      let args = {};
+      try { args = JSON.parse(call.function.arguments || '{}'); } catch { /* keep empty */ }
+      let out;
+      try {
+        out = await runTool(env, call.function.name, args, ctx);
+      } catch (err) {
+        out = { result: { ok: false, error: err.message } };
+      }
+      (out.changed || []).forEach((c) => changed.add(c));
+      actions.push({ tool: call.function.name, args, ok: out.result?.ok !== false });
+      messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(out.result) });
+    }
+  }
+  return 'I got a bit tangled up there. Could you say that again?';
+}
+
+// ---------- Gemini ----------
 
 async function callGemini(env, body, model = env.GEMINI_MODEL || DEFAULT_MODEL) {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -33,6 +111,15 @@ async function callGemini(env, body, model = env.GEMINI_MODEL || DEFAULT_MODEL) 
 const textOf = (content) => (content?.parts || []).filter((p) => p.text && !p.thought).map((p) => p.text).join('').trim();
 
 export async function generateText(env, prompt) {
+  if (env.GROQ_API_KEY) {
+    try {
+      const data = await callGroq(env, { messages: [{ role: 'user', content: prompt }], temperature: 0.8, max_completion_tokens: 1500 });
+      const text = (data.choices?.[0]?.message?.content || '').trim();
+      if (text) return text;
+    } catch (err) {
+      if (!env.GEMINI_API_KEY) throw err;
+    }
+  }
   const data = await callGemini(env, {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     generationConfig: { temperature: 0.8, maxOutputTokens: 1024 },
@@ -75,10 +162,21 @@ export async function chat(env, settings, message) {
 
   let reply = null;
   if (aiConfigured(env)) {
-    try {
-      reply = await chatWithGemini(env, settings, now, ctx, message, changed, actions);
-    } catch (err) {
-      console.log('Gemini failed, falling back to offline parser:', err.message);
+    const history = (await all(env.DB, 'SELECT role, content FROM chat ORDER BY id DESC LIMIT 17')).reverse();
+    const systemText = await systemPrompt(env, settings, now);
+    if (env.GROQ_API_KEY) {
+      try {
+        reply = await chatWithGroq(env, systemText, history, ctx, changed, actions);
+      } catch (err) {
+        console.log('Groq failed:', err.message);
+      }
+    }
+    if (!reply && env.GEMINI_API_KEY) {
+      try {
+        reply = await chatWithGemini(env, systemText, history, ctx, message, changed, actions);
+      } catch (err) {
+        console.log('Gemini failed:', err.message);
+      }
     }
   }
   if (!reply) reply = await offlineReply(env, ctx, message, changed, actions);
@@ -89,14 +187,13 @@ export async function chat(env, settings, message) {
   return { reply, changed: [...changed], actions, ai: aiConfigured(env) };
 }
 
-async function chatWithGemini(env, settings, now, ctx, message, changed, actions) {
-  const history = (await all(env.DB, 'SELECT role, content FROM chat ORDER BY id DESC LIMIT 17')).reverse();
-  // The last row is the message we just stored.
+async function chatWithGemini(env, systemText, history, ctx, message, changed, actions) {
+  // The last history row is the message we just stored.
   const contents = history.map((h) => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.content }] }));
   if (!contents.length || contents[contents.length - 1].role !== 'user') contents.push({ role: 'user', parts: [{ text: message }] });
 
   const body = {
-    systemInstruction: { parts: [{ text: await systemPrompt(env, settings, now) }] },
+    systemInstruction: { parts: [{ text: systemText }] },
     tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
     generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
     contents,
