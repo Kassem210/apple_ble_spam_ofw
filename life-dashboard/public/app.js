@@ -714,8 +714,8 @@ function viewSettings() {
     <p class="small muted" style="margin:0 0 10px">Shows your score, next task, weather and steps. Keep this link private.</p>
     <code class="block" id="widget-url">Loading…</code>
     <div class="row wrap" style="margin-top:10px">
-      <button class="btn sm" data-action="copy-widget">Copy link</button>
-      <a class="btn sm" href="/widget/scriptable.js" target="_blank">iPhone widget script</a>
+      <button class="btn primary sm" data-action="copy-widget-script">Copy iPhone widget script</button>
+      <button class="btn sm" data-action="copy-widget">Copy link only</button>
     </div>
   </section>
 
@@ -748,6 +748,11 @@ async function hydrateSettings() {
 
   const [w, mem] = await Promise.all([guard(() => api('/api/widget/token')), guard(() => api('/api/memories'))]);
   if (w && $('#widget-url')) $('#widget-url').textContent = w.url;
+  // Pre-load the widget script with your link baked in, so "Copy" works in one tap on iPhone.
+  if (w && !state.widgetScript) {
+    const code = await fetch('/widget/scriptable.js').then((r) => r.text()).catch(() => '');
+    if (code) state.widgetScript = code.replace('PASTE_YOUR_WIDGET_LINK_HERE', w.url);
+  }
   if (mem && $('#memories')) {
     $('#memories').innerHTML = mem.length ? mem.map((m) => `<div class="list-item"><div style="flex:1">${esc(m.text)}</div><button class="task-del" data-action="del-memory" data-id="${m.id}">${I.x}</button></div>`).join('')
       : '<div class="empty">Nothing yet. Tell the assistant “remember that…”.</div>';
@@ -1155,6 +1160,15 @@ const actions = {
       toast('Location filled in — hit Save');
     }, () => toast('Could not get your location'));
   },
+  'copy-widget-script': async () => {
+    if (!state.widgetScript) { toast('Still loading, try again in a second'); return; }
+    try {
+      await navigator.clipboard.writeText(state.widgetScript);
+      toast('Copied! Now paste it into a new Scriptable script.', 3500);
+    } catch {
+      toast('Copy was blocked. Try again.');
+    }
+  },
   'copy-widget': async () => {
     try { await navigator.clipboard.writeText($('#widget-url').textContent); toast('Copied'); } catch { toast('Copy failed — long-press the link'); }
   },
@@ -1318,7 +1332,7 @@ async function boot() {
   try {
     const s = await api('/api/session');
     if (!s.configured) {
-      root.innerHTML = '<div class="login"><div class="card login-card"><h1>Almost there</h1><p class="muted">Set APP_PASSWORD and SESSION_SECRET on the server (see README), then reload.</p></div></div>';
+      root.innerHTML = '<div class="login"><div class="card login-card"><h1>Almost there</h1><p class="muted">Add a secret called <b>APP_PASSWORD</b> in Cloudflare → your Worker → Settings → Variables and Secrets, then reload this page.</p></div></div>';
       return;
     }
     if (!s.authed) { renderLogin(); return; }

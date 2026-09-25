@@ -19,6 +19,7 @@ import {
 } from './google.js';
 import { notifyAll } from './push.js';
 import { tick } from './cron.js';
+import { withSecrets } from './secrets.js';
 import { parseQuickTask } from './intents.js';
 
 const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), {
@@ -143,7 +144,7 @@ async function handleApi(request, env, ctx, url) {
   if (path === '/api/health') return json({ ok: true });
 
   if (path === '/api/login' && method === 'POST') {
-    if (!env.APP_PASSWORD || !env.SESSION_SECRET) return bad('APP_PASSWORD / SESSION_SECRET are not set on the server yet. See the README.', 500);
+    if (!env.APP_PASSWORD) return bad('APP_PASSWORD is not set yet. Add it in Cloudflare → your Worker → Settings → Variables and Secrets.', 500);
     if (!(await loginAllowed(env))) return bad('Too many attempts. Try again in 15 minutes.', 429);
     const { password } = await body(request);
     const ok = await checkPassword(env, password);
@@ -158,7 +159,7 @@ async function handleApi(request, env, ctx, url) {
   }
 
   const authed = env.SESSION_SECRET && await isAuthed(request, env);
-  if (path === '/api/session') return json({ authed: Boolean(authed), configured: Boolean(env.APP_PASSWORD && env.SESSION_SECRET) });
+  if (path === '/api/session') return json({ authed: Boolean(authed), configured: Boolean(env.APP_PASSWORD) });
   if (!authed) return bad('Locked', 401);
 
   // Cross-site requests can't carry our SameSite=Lax cookie on POST, but be explicit anyway.
@@ -341,11 +342,12 @@ async function handleApi(request, env, ctx, url) {
 }
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, rawEnv, ctx) {
     const url = new URL(request.url);
-    if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
+    if (!url.pathname.startsWith('/api/')) return rawEnv.ASSETS.fetch(request);
     try {
-      await ensureSchema(env.DB);
+      await ensureSchema(rawEnv.DB);
+      const env = await withSecrets(rawEnv);
       return await handleApi(request, env, ctx, url);
     } catch (err) {
       console.log('API error', err.stack || err.message);
@@ -353,8 +355,9 @@ export default {
     }
   },
 
-  async scheduled(event, env, ctx) {
-    await ensureSchema(env.DB);
+  async scheduled(event, rawEnv, ctx) {
+    await ensureSchema(rawEnv.DB);
+    const env = await withSecrets(rawEnv);
     ctx.waitUntil(tick(env).then((log) => log.length && console.log('cron', log.join(' | '))));
   },
 };

@@ -13,21 +13,30 @@ A private web app you install on your phone's home screen:
 
 ---
 
-## 1. Deploy (about 10 minutes, one time)
+## 1. Deploy from your phone (no computer needed)
 
-You need a computer with [Node.js 20+](https://nodejs.org) installed.
+Everything happens in Safari.
+
+1. Go to **dash.cloudflare.com** and sign up for free.
+2. Open **Workers & Pages** → **Create** → **Import a repository** → connect GitHub and pick this repo.
+3. Fill in the settings:
+   - **Project name:** `life-dashboard`
+   - **Path / root directory** (under *Advanced settings*): `life-dashboard`
+   - **Build command:** leave empty
+   - **Deploy command:** `npx wrangler deploy`
+4. Tap **Deploy**. The first deploy also creates the database.
+5. Open your Worker → **Settings → Variables and Secrets** → **Add**:
+   - Type **Secret**, name `APP_PASSWORD`, value your password.
+   - Optional: another **Secret** named `GEMINI_API_KEY` (see section 3).
+6. Open your link, e.g. `https://life-dashboard.<you>.workers.dev`.
+
+The security and notification keys are generated automatically on first run. Every push to the repo redeploys the app.
+
+### Or from a computer
 
 ```bash
-git clone <this repo> && cd <repo>/life-dashboard
-npm install
-npm run setup
+cd life-dashboard && npm install && npm run setup
 ```
-
-The setup script:
-1. Opens a browser so you can log in to Cloudflare, or create a free account.
-2. Creates your free database.
-3. Deploys the app and prints your link, e.g. `https://life-dashboard.<you>.workers.dev`.
-4. Asks for your password and, optionally, your API keys. It also generates the push-notification keys.
 
 ## 2. Install it on your phone
 
@@ -46,7 +55,7 @@ Long-press the app icon for shortcuts: talk to the assistant, open the briefing,
 Without a key, the assistant still understands common commands, for example "remind me to…", "done…", "I spent 50 on coffee", "I ran 5 km", "what's my score" and "brief me". With a free Gemini key it becomes a real conversational assistant.
 
 1. Go to https://aistudio.google.com/apikey → **Create API key**. No card is needed.
-2. Run `npx wrangler secret put GEMINI_API_KEY` and paste the key.
+2. In Cloudflare, go to your Worker → **Settings → Variables and Secrets** → **Add** a **Secret** named `GEMINI_API_KEY` and paste the key. From a computer you can run `npx wrangler secret put GEMINI_API_KEY` instead.
 
 The free tier covers normal personal use. When a model's daily quota runs out, the app switches to a lighter Gemini model, then to the offline command parser.
 
@@ -65,11 +74,7 @@ One Google Cloud "OAuth client" covers all three services.
 4. **Credentials → Create credentials → OAuth client ID**:
    - Type **Web application**.
    - Authorized redirect URI: `https://<your-app>.workers.dev/api/oauth/google/callback`
-5. Save the two values as secrets:
-   ```bash
-   npx wrangler secret put GOOGLE_CLIENT_ID
-   npx wrangler secret put GOOGLE_CLIENT_SECRET
-   ```
+5. Save the two values as **Secrets** named `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. In Cloudflare that's your Worker → Settings → Variables and Secrets.
 6. In the app, go to **Settings → Connections**:
    - Tap **Connect** next to *Google Calendar & Gmail*.
    - Tap **Connect** next to *Google Health · Fitbit Air*.
@@ -81,11 +86,10 @@ Health data syncs every hour. You can also tap **Sync** on the Health tab.
 ## 5. iPhone home-screen widget
 
 1. Install **Scriptable** (free) from the App Store.
-2. In the app, go to **Settings → Home-screen widget**, tap **iPhone widget script**, and copy all of it.
-3. In Scriptable, tap **+**, paste the script and name it `Life`.
-4. Add a **Scriptable** widget (small or medium) to your home screen, then long-press it → **Edit Widget**:
-   - Script: **Life**
-   - Parameter: paste your **widget link** from Settings.
+2. In Life, go to **Settings → Home-screen widget** and tap **Copy iPhone widget script**. Your private link is already inside it.
+3. In Scriptable, tap **+**, paste, and name the script `Life`.
+4. Long-press your home screen → **+** → **Scriptable** → pick Small or Medium → **Add Widget**.
+5. Long-press the widget → **Edit Widget** → Script: **Life**.
 
 The widget shows your score ring, your next task, weather, steps, habits and today's spending. It refreshes about every 15 minutes.
 
@@ -113,7 +117,7 @@ Everything lives under **Settings** in the app:
 
 **Export all my data** downloads everything as JSON.
 
-To change your password, run `npx wrangler secret put APP_PASSWORD`. Every device gets logged out.
+To change your password, edit the `APP_PASSWORD` secret in Cloudflare. Every device gets logged out.
 
 ## Development
 

@@ -1,10 +1,11 @@
 // Life — home-screen widget for iPhone (free "Scriptable" app).
 //
+// Easiest: in Life → Settings → Home-screen widget tap "Copy iPhone widget script"
+// (your private link is already filled in), then:
 // 1. Install Scriptable from the App Store.
-// 2. In Scriptable tap +, paste this whole file, name it "Life".
+// 2. In Scriptable tap +, paste, and name the script "Life".
 // 3. Long-press your home screen → + → Scriptable → pick Small or Medium → Add.
-// 4. Long-press the widget → Edit Widget → Script: Life,
-//    Parameter: paste your widget link from Life → Settings → Home-screen widget.
+// 4. Long-press the widget → Edit Widget → Script: Life.
 
 const WIDGET_URL = args.widgetParameter || 'PASTE_YOUR_WIDGET_LINK_HERE';
 

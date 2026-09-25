@@ -1,6 +1,8 @@
 name = "life-dashboard"
 main = "src/worker.js"
 compatibility_date = "2025-09-01"
+# Keep anything you add in the Cloudflare dashboard when the app redeploys.
+keep_vars = true
 
 # Static app (HTML/CSS/JS/service worker) served for free by Workers Assets.
 [assets]
@@ -9,11 +11,10 @@ binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = ["/api/*"]
 
-# Free SQLite database. `npm run setup` fills in database_id for you.
+# Free SQLite database. No id needed: Cloudflare creates it on the first deploy.
 [[d1_databases]]
 binding = "DB"
 database_name = "life-dashboard"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
 
 # Every 5 minutes: morning briefing, task reminders, evening check-in, health sync.
 [triggers]

@@ -1,7 +1,7 @@
 // One-command setup: Cloudflare login -> database -> deploy -> secrets.
 // Run from the life-dashboard folder:  npm run setup
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { writeFileSync, unlinkSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { generateSecrets } from './gen-keys.mjs';
 
@@ -23,22 +23,7 @@ if (!wrangler(['whoami'], { capture: true }).out.match(/associated with the emai
   if (!wrangler(['login']).ok) { console.error('Login failed.'); process.exit(1); }
 }
 
-let toml = readFileSync('wrangler.toml', 'utf8');
-if (toml.includes('REPLACE_WITH_YOUR_D1_DATABASE_ID')) {
-  say('Creating your database…');
-  const r = wrangler(['d1', 'create', 'life-dashboard'], { capture: true });
-  const id = r.out.match(/database_id"?\s*[:=]\s*"([0-9a-f-]{36})"/)?.[1];
-  if (!id) {
-    console.log(r.out);
-    console.error('Could not read the database id. If it already exists, run `npx wrangler d1 list` and paste the id into wrangler.toml.');
-    process.exit(1);
-  }
-  toml = toml.replace('REPLACE_WITH_YOUR_D1_DATABASE_ID', id);
-  writeFileSync('wrangler.toml', toml);
-  console.log(`Database ready (${id}).`);
-}
-
-say('Deploying the app…');
+say('Deploying the app (the database is created automatically)…');
 const dep = wrangler(['deploy'], { capture: true });
 console.log(dep.out.split('\n').filter((l) => /https:\/\/|Uploaded|Deployed|error/i.test(l)).join('\n'));
 if (!dep.ok) { console.error(dep.out); process.exit(1); }
